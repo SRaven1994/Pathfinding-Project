@@ -28,6 +28,8 @@ class PathFindingScene extends Phaser.Scene {
         // Weapon Assets
         this.load.image("gun", "assets/gun.png")
         this.load.image("bullet", "assets/bullet.png")
+        // Enemy Assets
+        this.load.image("enemy", "assets/enemy.png")
     }
     create() {
         this.map = this.make.tilemap({key: "tilemap"})
@@ -44,6 +46,9 @@ class PathFindingScene extends Phaser.Scene {
             }else if(dataObject.type === "gunSpawn"){
                 // @ts-ignore
                 this.gun = this.physics.add.sprite(dataObject.x, dataObject.y, "gun")
+            }else if(dataObject.type === "enemySpawn"){
+                // @ts-ignore
+                this.enemySpawnPoints.push(dataObject)
             }
         }, this)
         this.physics.add.collider(this.player.sprite, groundAndWallsLayer)
@@ -57,14 +62,77 @@ class PathFindingScene extends Phaser.Scene {
         this.physics.world.on("worldbounds", this.worldBoundsBullet, this)
         this.physics.add.collider(this.bullets,groundAndWallsLayer, this.bulletHitWall, null, this)
         this.events.on("firebullet", this.fireBullet, this)
+        // Enemy Mechanics
+        this.events.on("enemyready", this.handleEnemyMove, this)
+        this.time.delayedCall(1000, this.onEnemySpawn, [], this)
+        // @ts-ignore
+        this.finder = new EasyStar.js()
+        // 2D map tiles
+        let grid = []
+        for (let y = 0; y < this.map.height; y++){
+            let col = []
+            for(let x = 0; x < this.map.width; x++){
+                let tile = this.map.getTileAt(x, y)
+                if(tile){
+                    col.push(tile.index)
+                }else{
+                    // If no tiles exist
+                    col.push(0)
+                }
+            }
+            grid.push(col)
+        }
+        // Get map info to EasyStar
+        this.finder.setGrid(grid)
+        // tileset Props
+        let properties = tileset.tileProperties
+        // Hold valid Tiles 
+        let acceptableTiles = []
+        for(let i = tileset.firstgid -1; i < tileset.total; i++){
+            // Look for tiles
+            if(properties[i] && properties[i].valid){
+                // Add Valid tile to list
+                acceptableTiles.push(i + 1)
+            }
+        }
+        // Which tiles can be used
+        this.finder.setAcceptableTiles(acceptableTiles)
     }
     findPath(point) {
+        //  Point object of x and y to pixels
+        let toX = Math.floor(point.x/this.map.tileWidth)
+        let toY = Math.floor(point.y/this.map.tileHeight)
+        let fromX = Math.floor(this.activeEnemy.sprite.x/this.map.tileWidth)
+        let fromY = Math.floor(this.activeEnemy.sprite.y/this.map.tileHeight)
+        let callback = this.moveEnemy.bind(this)
+        this.finder.findPath(fromX, fromY, toX, toY, function(path){
+            if(path === null){
+                console.warn("No path found")
+            }else{
+                console.log("Path Found")
+                callback(path)
+            }
+        })
+        // Execute Path Query
+        this.finder.calculate()
     }
     moveEnemy(path) {
+        console.log(path)
     }
     onEnemySpawn() {
+        let index = Phaser.Math.Between(0, this.enemySpawnPoints.length - 1)
+        let spawnPoint = this.enemySpawnPoints[index]
+        let enemy = new Enemy(this, spawnPoint.x, spawnPoint.y, "enemy")
+        enemy.targetX = spawnPoint.x
+        enemy.targetY = spawnPoint.y
+        this.enemies.push(enemy)
+        this.physics.add.overlap(this.player.sprite, enemy.sprite, this.collideEnemy, null, this)
     }
     handleEnemyMove(enemy) {
+        this.activeEnemy = enemy
+        let toX = Math.floor(this.player.sprite.x / this.map.tileWidth) * this.map.tileWidth + (this.map.tileWidth/2)
+        let toY = Math.floor(this.player.sprite.y / this.map.tileHeight) * this.map.tileHeight + (this.map.tileHeight/2)
+        this.findPath({x:this.player.sprite.x, y:this.player.sprite.y})
     }
     collectGun(player, gun) {
         this.gun.destroy()
@@ -72,19 +140,21 @@ class PathFindingScene extends Phaser.Scene {
         this.player.sprite.setTexture("playerGun")
     }
     fireBullet() {
-        let bullet = this.bullets.get(this.player.sprite.x, this.player.sprite.y)
+        let vector = new Phaser.Math.Vector2(48, 19)
+        vector.rotate(this.player.sprite.rotation)
+        let bullet = this.bullets.get(this.player.sprite.x+vector.x, this.player.sprite.y+vector.y)
         if(bullet){
             bullet.setDepth(3)
             bullet.body.collideWorldBounds = true
             bullet.body.onWorldBounds = true
             bullet.enableBody(false, bullet.x, bullet.y, true, true)
             bullet.rotation = this.player.sprite.rotation
-            this.physics.velocityFromRotation(bullet.rotation, 200, bullet.body.velocity)
+            this.physics.velocityFromRotation(bullet.rotation, 500, bullet.body.velocity)
         }
     }
     worldBoundsBullet(body) {
         // Return bullet to Pool
-        body.gameObject.disableBidy(true, true)
+        body.gameObject.disableBody(true, true)
     }
     bulletHitWall(bullet, layer) {
         bullet.disableBody(true, true)
@@ -95,5 +165,8 @@ class PathFindingScene extends Phaser.Scene {
     }
     update(time, delta) {
         this.player.update(time, delta)
+        for (let i = 0; i < this.enemies.length; i++){
+            this.enemies[i].update(time, delta)
+        }
     }
 }

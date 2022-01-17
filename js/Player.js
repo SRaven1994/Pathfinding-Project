@@ -28,7 +28,8 @@ class Player {
             w: Phaser.Input.Keyboard.KeyCodes.W,
             a: Phaser.Input.Keyboard.KeyCodes.A,
             s: Phaser.Input.Keyboard.KeyCodes.S,
-            d: Phaser.Input.Keyboard.KeyCodes.D
+            d: Phaser.Input.Keyboard.KeyCodes.D,
+            shift: Phaser.Input.Keyboard.KeyCodes.SHIFT 
         })
         this.currentSpeed = this.standardSpeed
     }
@@ -48,6 +49,10 @@ class Player {
                 this.sprite.angle = 90
             }else{
                 this.sprite.setVelocity(0, 0) 
+            }
+            // Player Sprint
+            if(this.keys.shift.isDown){
+                
             }
             // Resize Hitbox
             if(this.sprite.body.velocity.x != 0){
