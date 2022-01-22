@@ -2,7 +2,7 @@ class Enemy{
     /** @type {Phaser.Physics.Arcade.Sprite} */
     sprite
     /** @type {number} */
-    speed = 200 // ms between tiles
+    speed = 300 // ms between tiles
     /** @type {number} */
     targetX
     /** @type {number} */
@@ -20,6 +20,11 @@ class Enemy{
         if(!this.pendingMove && this.sprite.x == this.targetX && this.sprite.y == this.targetY){
             this.pendingMove = true
             this.scene.time.delayedCall(500, this.beginMove, [], this)
+        }
+        if(this.sprite.angle == 0 || Math.abs(this.sprite.angle) == 180){
+            this.sprite.setSize(this.sprite.width, this.sprite.height)
+        }else if(Math.abs(this.sprite.angle) == 90 || Math.abs(this.sprite.angle) == 270){
+            this.sprite.setSize(this.sprite.height, this.sprite.width)
         }
     }
     beginMove(){ 
