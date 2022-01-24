@@ -3,6 +3,8 @@ class PathFindingScene extends Phaser.Scene {
     map
     /** @type {Player} */
     player
+    /** @type {HealthBar} */
+    healthBar
     /** @type  {Phaser.Physics.Arcade.Sprite} */
     gun
     /** @type  {Phaser.Physics.Arcade.StaticGroup} */
@@ -88,8 +90,9 @@ class PathFindingScene extends Phaser.Scene {
         this.ammoCounter = this.add.bitmapText(100, 200, "UIFont", "Ammo: 0", 40).setScrollFactor(0).setDepth(10)
         this.ammoIcon = this.add.image(40, 220, "ammoUI").setScale(2, 2).setDepth(10)
         this.healthIcon = this.add.image(40, 130, "healthUI").setScale(4, 4).setDepth(10)
-        let healthBar = this.makeBar(100,105,0x2ecc71).setDepth(10)
-        this.setValue(healthBar,100);
+        this.healthBar = new HealthBar(this, 300, 135, 400, 50, 2000, '0x000000', '0x00FF00')
+        this.healthBar.setMaximumValue(this.player.health)
+        this.healthBar.setValue(this.player.health)
         // Bullet Group
         this.bullets = this.physics.add.group({
             defaultKey: "bullet",
@@ -152,23 +155,6 @@ class PathFindingScene extends Phaser.Scene {
         })
         // Execute Path Query
         this.finder.calculate()
-    }
-    makeBar(x, y,color){
-        //draw the bar
-        let bar = this.add.graphics();
-        //color the bar
-        bar.fillStyle(color, 1);
-        //fill the bar with a rectangle
-        bar.fillRect(0, 0, 300, 60);       
-        //position the bar
-        bar.x = x;
-        bar.y = y;
-        //return the bar
-        return bar;
-    }
-    setValue(bar, percentage){
-        //scale the bar
-        bar.scaleX = percentage/100;
     }
     moveEnemy(path) {
         if(this.player.isDead){
@@ -294,7 +280,8 @@ class PathFindingScene extends Phaser.Scene {
         for (let i = 0; i < this.enemies.length; i++){
             this.enemies[i].update(time, delta)
         }
-    this.ammoCounter.setText("Ammo: " + this.player.ammo)    
+    this.ammoCounter.setText("Ammo: " + this.player.ammo)
+    this.healthBar.setValue(this.player.health)
     if(this.score >= 15){
         this.wave = 4
         this.waveCounter.setText("Wave: " + this.wave)
