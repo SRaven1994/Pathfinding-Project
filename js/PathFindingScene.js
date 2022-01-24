@@ -5,6 +5,8 @@ class PathFindingScene extends Phaser.Scene {
     player
     /** @type  {Phaser.Physics.Arcade.Sprite} */
     gun
+    /** @type  {Phaser.Physics.Arcade.StaticGroup} */
+    ammoPickup
     /** @type {Array.<Enemy>} */
     enemies = []
     /** @type {Array.<object>} */
@@ -12,7 +14,21 @@ class PathFindingScene extends Phaser.Scene {
     /** @type {Enemy} */
     activeEnemy
     /** @type {number} */
-    minEnemies = 2
+    maxEnemies = 1
+    /** @type {number} */
+    score = 0
+    /** @type {number} */
+    wave = 1
+    /** @type {Phaser.GameObjects.BitmapText} */
+    scoreCounter
+    /** @type {Phaser.GameObjects.BitmapText} */
+    waveCounter
+    /** @type {Phaser.GameObjects.BitmapText} */
+    ammoCounter
+    /** @type {Phaser.GameObjects.Image} */
+    ammoIcon
+    /** @type {Phaser.GameObjects.Image} */
+    healthIcon    
     /** @type  {Phaser.Physics.Arcade.Group} */
     bullets
     constructor() {
@@ -28,9 +44,14 @@ class PathFindingScene extends Phaser.Scene {
         // Weapon Assets
         this.load.image("gun", "assets/gun.png")
         this.load.image("bullet", "assets/bullet.png")
+        this.load.image("ammoBox", "assets/ammoItem.png")
         // Enemy Assets
         this.load.image("enemy", "assets/enemy.png")
         this.load.image("enemydead", "assets/dead-enemy.png")
+        // Fonts & UI
+        this.load.bitmapFont("UIFont", "assets/UI/carrier_command.png", "assets/UI/carrier_command.xml")
+        this.load.image("ammoUI", "assets/UI/bulletIcon.png")
+        this.load.image("healthUI", "assets/UI/health.png")
     }
     create() {
         this.map = this.make.tilemap({key: "tilemap"})
@@ -52,12 +73,27 @@ class PathFindingScene extends Phaser.Scene {
                 this.enemySpawnPoints.push(dataObject)
             }
         }, this)
+        let ammoPoints = Utils.FindPoints(this.map, "objectLayer", "ammoSpawn")
+        this.ammoPickup = this.physics.add.staticGroup()
+        for (let point, i = 0; i < ammoPoints.length; i++){
+            point = ammoPoints[i]
+            this.ammoPickup.create(point.x, point.y, "ammoBox")
+        }
         this.physics.add.collider(this.player.sprite, groundAndWallsLayer)
         this.physics.add.overlap(this.player.sprite, this.gun, this.collectGun, null, this)
+        this.physics.add.overlap(this.player.sprite, this.ammoPickup, this.collectAmmo, null, this)        
+        // Create UI
+        this.waveCounter = this.add.bitmapText(1465, 200, "UIFont", "Wave: 1", 40).setScrollFactor(0).setDepth(10)
+        this.scoreCounter = this.add.bitmapText(1465, 100, "UIFont", "Score: 0", 40).setScrollFactor(0).setDepth(10)
+        this.ammoCounter = this.add.bitmapText(100, 200, "UIFont", "Ammo: 0", 40).setScrollFactor(0).setDepth(10)
+        this.ammoIcon = this.add.image(40, 220, "ammoUI").setScale(2, 2).setDepth(10)
+        this.healthIcon = this.add.image(40, 130, "healthUI").setScale(4, 4).setDepth(10)
+        let healthBar = this.makeBar(100,105,0x2ecc71).setDepth(10)
+        this.setValue(healthBar,100);
         // Bullet Group
         this.bullets = this.physics.add.group({
             defaultKey: "bullet",
-            maxSize: 5,
+            maxSize: 50,
             collideWorldBounds: true
         })
         this.physics.world.on("worldbounds", this.worldBoundsBullet, this)
@@ -66,7 +102,6 @@ class PathFindingScene extends Phaser.Scene {
         // Enemy Mechanics
         this.events.on("enemyready", this.handleEnemyMove, this)
         this.time.delayedCall(1000, this.onEnemySpawn, [], this)
-        this.time.delayedCall(2000, this.onEnemySpawn, [], this)
         // @ts-ignore
         this.finder = new EasyStar.js()
         // 2D map tiles
@@ -117,6 +152,23 @@ class PathFindingScene extends Phaser.Scene {
         })
         // Execute Path Query
         this.finder.calculate()
+    }
+    makeBar(x, y,color){
+        //draw the bar
+        let bar = this.add.graphics();
+        //color the bar
+        bar.fillStyle(color, 1);
+        //fill the bar with a rectangle
+        bar.fillRect(0, 0, 300, 60);       
+        //position the bar
+        bar.x = x;
+        bar.y = y;
+        //return the bar
+        return bar;
+    }
+    setValue(bar, percentage){
+        //scale the bar
+        bar.scaleX = percentage/100;
     }
     moveEnemy(path) {
         if(this.player.isDead){
@@ -171,8 +223,15 @@ class PathFindingScene extends Phaser.Scene {
         this.gun.destroy()
         this.player.hasGun = true
         this.player.sprite.setTexture("playerGun")
+        this.player.ammo = 10
+        this.ammoCounter.setText("Ammo: " + this.player.ammo)
+    }
+    collectAmmo(player, ammo){  
+        this.player.ammo += 10
+        ammo.destroy()
     }
     fireBullet() {
+        this.ammoCounter.setText("Ammo: " + this.player.ammo)
         let vector = new Phaser.Math.Vector2(48, 19)
         vector.rotate(this.player.sprite.rotation)
         let bullet = this.bullets.get(this.player.sprite.x+vector.x, this.player.sprite.y+vector.y)
@@ -207,20 +266,56 @@ class PathFindingScene extends Phaser.Scene {
         this.enemies.splice(index, 1)
         this.add.image(enemySprite.x, enemySprite.y, "enemydead").setRotation(enemySprite.rotation).setDepth(0)
         enemySprite.destroy()
-        if(!this.player.isDead && this.enemies.length < this.minEnemies){
+        this.score ++
+        if(this.wave > 1){
+            this.maxEnemies --
+        }     
+        this.scoreCounter.setText("Score: " + this.score)
+        this.waveCounter.setText("Wave: " + this.wave)
+        if(!this.player.isDead && this.enemies.length < this.maxEnemies){
             this.onEnemySpawn()
         }
     }
     collideEnemy(player, enemySprite) {
-        this.tweens.killAll()
-        this.physics.pause()
-        this.player.isDead = true
-        this.player.sprite.setTint(0xFF0000)
+        if(this.player.health == 0){
+            this.tweens.killAll()
+            this.physics.pause()
+            this.player.isDead = true
+            this.player.sprite.setTint(0xFF0000)
+        }else if(!this.player.takeDamage){
+            console.log(this.player.health)
+            this.player.health -= 10
+            this.player.takeDamage = true
+            setTimeout(() => { this.player.takeDamage = false}, 1500)
+        }
     }
     update(time, delta) {
         this.player.update(time, delta)
         for (let i = 0; i < this.enemies.length; i++){
             this.enemies[i].update(time, delta)
         }
+    this.ammoCounter.setText("Ammo: " + this.player.ammo)    
+    if(this.score >= 15){
+        this.wave = 4
+        this.waveCounter.setText("Wave: " + this.wave)
+        if(this.maxEnemies < 4){
+            this.onEnemySpawn()
+            this.maxEnemies ++
+        }
+    }else if(this.score >= 10){
+        this.wave = 3
+        this.waveCounter.setText("Wave: " + this.wave)
+            if(this.maxEnemies < 3){
+                this.onEnemySpawn()
+                this.maxEnemies ++
+            }
+    }else if(this.score >= 5){
+        this.wave = 2
+        this.waveCounter.setText("Wave: " + this.wave)
+            if(this.maxEnemies < 2){
+                this.onEnemySpawn()
+                this.maxEnemies ++
+            }
+    }    
     }
 }

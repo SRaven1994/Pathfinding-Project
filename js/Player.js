@@ -17,7 +17,12 @@ class Player {
     isDead = false
     /** @type {boolean} */
     hasGun = false
-
+    /** @type {number} */
+    ammo = 0
+    /** @type {number} */
+    health = 100
+    /** @type {boolean} */
+    takeDamage
     constructor(scene, x, y, texture) {
         this.scene = scene
         this.sprite = scene.physics.add.sprite(x, y, texture)
@@ -60,8 +65,9 @@ class Player {
             }else if(this.sprite.body.velocity.y != 0){
                 this.sprite.setSize(this.sprite.height, this.sprite.width)
             }
-            if(this.hasGun && Phaser.Input.Keyboard.JustDown(this.spaceBar)){
+            if(this.hasGun && Phaser.Input.Keyboard.JustDown(this.spaceBar) && this.ammo >= 1){
                 this.scene.events.emit("firebullet")
+                this.ammo --
             }
         }
     }
