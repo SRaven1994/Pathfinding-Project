@@ -3,8 +3,10 @@ class PathFindingScene extends Phaser.Scene {
     map
     /** @type {Player} */
     player
-    /** @type {HealthBar} */
+    /** @type {Bar} */
     healthBar
+    /** @type {Bar} */
+    sprintBar
     /** @type  {Phaser.Physics.Arcade.Sprite} */
     gun
     /** @type  {Phaser.Physics.Arcade.StaticGroup} */
@@ -21,8 +23,14 @@ class PathFindingScene extends Phaser.Scene {
     score = 0
     /** @type {number} */
     wave = 1
+    /** @type {number} */
+    scoreMultipiler = 1
+    /** @type {number} */
+    comboKills = 0
     /** @type {Phaser.GameObjects.BitmapText} */
     scoreCounter
+    /** @type {Phaser.GameObjects.BitmapText} */
+    multipilerText
     /** @type {Phaser.GameObjects.BitmapText} */
     waveCounter
     /** @type {Phaser.GameObjects.BitmapText} */
@@ -30,7 +38,9 @@ class PathFindingScene extends Phaser.Scene {
     /** @type {Phaser.GameObjects.Image} */
     ammoIcon
     /** @type {Phaser.GameObjects.Image} */
-    healthIcon    
+    healthIcon
+    /** @type {Phaser.GameObjects.Image} */
+    sprintIcon    
     /** @type  {Phaser.Physics.Arcade.Group} */
     bullets
     constructor() {
@@ -54,6 +64,7 @@ class PathFindingScene extends Phaser.Scene {
         this.load.bitmapFont("UIFont", "assets/UI/carrier_command.png", "assets/UI/carrier_command.xml")
         this.load.image("ammoUI", "assets/UI/bulletIcon.png")
         this.load.image("healthUI", "assets/UI/health.png")
+        this.load.image("sprintUI", "assets/UI/sprintIcon.png")
     }
     create() {
         this.map = this.make.tilemap({key: "tilemap"})
@@ -87,12 +98,17 @@ class PathFindingScene extends Phaser.Scene {
         // Create UI
         this.waveCounter = this.add.bitmapText(1465, 200, "UIFont", "Wave: 1", 40).setScrollFactor(0).setDepth(10)
         this.scoreCounter = this.add.bitmapText(1465, 100, "UIFont", "Score: 0", 40).setScrollFactor(0).setDepth(10)
+        this.multipilerText = this.add.bitmapText(1350, 100, "UIFont", "x1", 40).setScrollFactor(0).setDepth(10)
         this.ammoCounter = this.add.bitmapText(100, 200, "UIFont", "Ammo: 0", 40).setScrollFactor(0).setDepth(10)
         this.ammoIcon = this.add.image(40, 220, "ammoUI").setScale(2, 2).setDepth(10)
-        this.healthIcon = this.add.image(40, 130, "healthUI").setScale(4, 4).setDepth(10)
-        this.healthBar = new HealthBar(this, 300, 135, 400, 50, 2000, '0x000000', '0x00FF00')
+        this.healthIcon = this.add.image(40, 75, "healthUI").setScale(4, 4).setDepth(10)
+        this.healthBar = new Bar(this, 300, 75, 400, 50, 2000, '0x000000', '0x00FF00')
         this.healthBar.setMaximumValue(this.player.health)
         this.healthBar.setValue(this.player.health)
+        this.sprintIcon = this.add.image(45, 140, "sprintUI").setScale(1.5, 1.5).setDepth(10)
+        this.sprintBar = new Bar(this, 300, 135, 400, 50, 2000, '0x000000', '0xFFFFFF')
+        this.sprintBar.setMaximumValue(this.player.energy)
+        this.sprintBar.setValue(this.player.energy)
         // Bullet Group
         this.bullets = this.physics.add.group({
             defaultKey: "bullet",
@@ -209,7 +225,7 @@ class PathFindingScene extends Phaser.Scene {
         this.gun.destroy()
         this.player.hasGun = true
         this.player.sprite.setTexture("playerGun")
-        this.player.ammo = 10
+        this.player.ammo += 10
         this.ammoCounter.setText("Ammo: " + this.player.ammo)
     }
     collectAmmo(player, ammo){  
@@ -252,7 +268,21 @@ class PathFindingScene extends Phaser.Scene {
         this.enemies.splice(index, 1)
         this.add.image(enemySprite.x, enemySprite.y, "enemydead").setRotation(enemySprite.rotation).setDepth(0)
         enemySprite.destroy()
-        this.score ++
+        this.comboKills += 1
+        console.log(this.comboKills)
+        if(this.scoreMultipiler == 3){
+            this.score += 3
+            console.log("score added by 3")
+            console.log("x" + this.scoreMultipiler)
+        }else if(this.scoreMultipiler == 2){
+            this.score += 2
+            console.log("score added by 2")
+            console.log("x" + this.scoreMultipiler)
+        }else if(this.scoreMultipiler == 1){
+            this.score += 1
+            console.log("score added by 1")
+            console.log("x" + this.scoreMultipiler)
+        }        
         if(this.wave > 1){
             this.maxEnemies --
         }     
@@ -269,8 +299,9 @@ class PathFindingScene extends Phaser.Scene {
             this.player.isDead = true
             this.player.sprite.setTint(0xFF0000)
         }else if(!this.player.takeDamage){
-            console.log(this.player.health)
             this.player.health -= 10
+            this.scoreMultipiler = 1
+            this.comboKills = 0
             this.player.takeDamage = true
             setTimeout(() => { this.player.takeDamage = false}, 1500)
         }
@@ -281,7 +312,14 @@ class PathFindingScene extends Phaser.Scene {
             this.enemies[i].update(time, delta)
         }
     this.ammoCounter.setText("Ammo: " + this.player.ammo)
+    this.multipilerText.setText("x" + this.scoreMultipiler)
     this.healthBar.setValue(this.player.health)
+    this.sprintBar.setValue(this.player.energy)
+    if(this.comboKills >= 10){
+        this.scoreMultipiler = 3
+    }else if(this.comboKills >= 5){
+        this.scoreMultipiler = 2
+    }
     if(this.score >= 15){
         this.wave = 4
         this.waveCounter.setText("Wave: " + this.wave)

@@ -21,6 +21,8 @@ class Player {
     ammo = 0
     /** @type {number} */
     health = 100
+    /** @type {number} */
+    energy = 100
     /** @type {boolean} */
     takeDamage
     constructor(scene, x, y, texture) {
@@ -37,9 +39,13 @@ class Player {
             shift: Phaser.Input.Keyboard.KeyCodes.SHIFT 
         })
         this.currentSpeed = this.standardSpeed
+        
     }
     update(time, delta) {
         if(!this.isDead){
+            if(this.energy > 100){
+                this.energy = 100
+            }
             if(this.keys.a.isDown){
                 this.sprite.setVelocity(-this.currentSpeed, 0)
                 this.sprite.angle = 180
@@ -56,8 +62,15 @@ class Player {
                 this.sprite.setVelocity(0, 0) 
             }
             // Player Sprint
-            if(this.keys.shift.isDown){
-                
+            if(this.keys.shift.isDown && this.energy >= 0.5){
+                this.energy -= 0.5
+                this.currentSpeed = this.powerUpSpeed          
+            }else if(this.keys.shift.isDown && this.energy == 0){
+                this.currentSpeed = this.standardSpeed
+            }
+            if(!this.keys.shift.isDown && this.energy < 100){
+                this.energy += 0.5
+                this.currentSpeed = this.standardSpeed
             }
             // Resize Hitbox
             if(this.sprite.body.velocity.x != 0){
