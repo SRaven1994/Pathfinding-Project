@@ -165,7 +165,6 @@ class PathFindingScene extends Phaser.Scene {
             if(path === null){
                 console.warn("No path found")
             }else{
-                console.log("Path Found")
                 callback(path)
             }
         })
@@ -268,24 +267,22 @@ class PathFindingScene extends Phaser.Scene {
         this.enemies.splice(index, 1)
         this.add.image(enemySprite.x, enemySprite.y, "enemydead").setRotation(enemySprite.rotation).setDepth(0)
         enemySprite.destroy()
+        // Combo Increase
         this.comboKills += 1
         console.log(this.comboKills)
+        // Reward Score Point
         if(this.scoreMultipiler == 3){
             this.score += 3
-            console.log("score added by 3")
-            console.log("x" + this.scoreMultipiler)
         }else if(this.scoreMultipiler == 2){
             this.score += 2
-            console.log("score added by 2")
-            console.log("x" + this.scoreMultipiler)
         }else if(this.scoreMultipiler == 1){
             this.score += 1
-            console.log("score added by 1")
-            console.log("x" + this.scoreMultipiler)
-        }        
+        }
+        // Used to Prevent Bug on First Wave        
         if(this.wave > 1){
             this.maxEnemies --
-        }     
+        }
+        // Update Wave & Score UI     
         this.scoreCounter.setText("Score: " + this.score)
         this.waveCounter.setText("Wave: " + this.wave)
         if(!this.player.isDead && this.enemies.length < this.maxEnemies){
@@ -300,8 +297,10 @@ class PathFindingScene extends Phaser.Scene {
             this.player.sprite.setTint(0xFF0000)
         }else if(!this.player.takeDamage){
             this.player.health -= 10
+            // Reset Sore Multipiler
             this.scoreMultipiler = 1
             this.comboKills = 0
+            // No Damage Cooldown
             this.player.takeDamage = true
             setTimeout(() => { this.player.takeDamage = false}, 1500)
         }
@@ -311,15 +310,18 @@ class PathFindingScene extends Phaser.Scene {
         for (let i = 0; i < this.enemies.length; i++){
             this.enemies[i].update(time, delta)
         }
+    // UI Updates    
     this.ammoCounter.setText("Ammo: " + this.player.ammo)
     this.multipilerText.setText("x" + this.scoreMultipiler)
     this.healthBar.setValue(this.player.health)
     this.sprintBar.setValue(this.player.energy)
+    // Score Multipiler Increase 
     if(this.comboKills >= 10){
         this.scoreMultipiler = 3
     }else if(this.comboKills >= 5){
         this.scoreMultipiler = 2
     }
+    // Wave Increase
     if(this.score >= 15){
         this.wave = 4
         this.waveCounter.setText("Wave: " + this.wave)
